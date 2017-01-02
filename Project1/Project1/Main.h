@@ -10,27 +10,33 @@
 #define fieldsX 30
 #define fieldsY 30
 
+#define cellsNumber fieldsX * fieldsY
+#define maxBombs cellsNumber/10
+
 enum FieldState 
 {
 	Empty = 0,
-	Bomb1 = 1,
-	Bomb2 = 2,
-	Bomb3 = 3,
-	Bomb4 = 4,
-	Bomb5 = 5,
-	Bomb6 = 6,
-	Bomb7 = 7,
-	Bomb8 = 8,
-	Bomb = 9,
-	Flag = 10,
-	Hidden = 11
+	Flag = 1,
+	Number = 2,
+	Hidden = 3
 };
 
 typedef struct 
 {
 	int initialState;
 	int state;
+	int bombNumber;
+	bool hasBomb;
+
 } Field;
 
-void initGame(SDL_Renderer *renderer, SDL_Texture *image, Field fields[]);
+void initGame(SDL_Renderer *renderer, SDL_Texture *image);
+void initBombs();
+void initAdjacents(int x, int y);
+int getAverage(int x, int y);
 void initFieldOffSet(SDL_Renderer *renderer, SDL_Texture *image, int x, int y);
+void displayFields(SDL_Renderer *renderer);
+
+SDL_Texture* getImageFromField(SDL_Renderer *renderer, Field field);
+
+Field fields[cellsNumber];
