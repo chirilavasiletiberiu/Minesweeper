@@ -8,11 +8,13 @@
 #include "SDL.h"
 #include "SDL_image.h"
 
-#define fieldsX 30
-#define fieldsY 30
+int fieldsX;
+int fieldsY;
 
-#define cellsNumber fieldsX * fieldsY
-#define maxBombs cellsNumber / 10
+#define fieldWidth 20
+
+int cellsNumber;
+int maxBombs;
  
 enum FieldState 
 {
@@ -41,9 +43,14 @@ int getAverage(int x, int y);
 void initFieldOffSet(SDL_Renderer *renderer, SDL_Texture *image, int x, int y);
 void displayFields(SDL_Renderer *renderer);
 
+void checkAdjacents(int x, int y, int count, SDL_Renderer *renderer);
+
 SDL_Texture* getImageFromField(SDL_Renderer *renderer, Field field);
 
-Field fields[cellsNumber];
+Field fields[31][31];
+
+int fieldsRevealed;
+int numberOfEmptyFields;
 
 int solveEvent(SDL_Event event, SDL_Renderer *renderer, int running);
 

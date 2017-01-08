@@ -4,9 +4,33 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
+	int difficulty = 1;
+
+	if (difficulty == 1)
+	{
+		fieldsX = 8;
+		fieldsY = 8;
+
+		maxBombs = 10;
+	}
+	else if (difficulty == 2)
+	{
+		fieldsX = 16;
+		fieldsY = 16;
+
+		maxBombs = 40;
+	}
+	else if (difficulty == 3)
+	{
+		fieldsX = 31;
+		fieldsY = 16;
+
+		maxBombs = 99;
+	}
+
 	SDL_Init(SDL_INIT_EVERYTHING);
 
-	SDL_Window *window = SDL_CreateWindow("Minesweeper", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, fieldsX * 30, fieldsY * 30, 0);
+	SDL_Window *window = SDL_CreateWindow("Minesweeper", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, fieldsX * fieldWidth, fieldsY * fieldWidth, 0);
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
 	return startGame(window, renderer);
@@ -46,16 +70,19 @@ void initGame(SDL_Renderer *renderer)
 {
 	SDL_RenderClear(renderer);
 
+	fieldsRevealed = 0;
+	numberOfEmptyFields = fieldsX * fieldsY;
+
 	SDL_Texture *emptyImage = IMG_LoadTexture(renderer, "../images/empty.bmp");
 
 	for (int i = 0; i < fieldsX; i++)
 	{
 		for (int j = 0; j < fieldsY; j++)
 		{
-			fields[i + j*fieldsX].hasBomb = false;
-			fields[i + j*fieldsX].bombNumber = 0;
-			fields[i + j*fieldsX].initialState = Empty;
-			fields[i + j*fieldsX].state = Hidden;
+			fields[i][j].hasBomb = false;
+			fields[i][j].bombNumber = 0;
+			fields[i][j].initialState = Empty;
+			fields[i][j].state = Hidden;
 
 			initFieldOffSet(renderer, emptyImage, i, j);
 		}
@@ -73,7 +100,7 @@ void initBombs()
 		int x = getAverage(0, fieldsX);
 		int y = getAverage(0, fieldsY);
 
-		if (fields[x + y * fieldsX].hasBomb == true)
+		if (fields[x][y].hasBomb == true)
 		{
 			i--;
 		} 
@@ -81,9 +108,11 @@ void initBombs()
 		{
 			if (x != 0 || y != 0)
 			{
-				fields[x + y * fieldsX].hasBomb = true;
-				fields[x + y * fieldsX].state = Hidden;
-				fields[x + y * fieldsX].initialState = Bomb;
+				fields[x][y].hasBomb = true;
+				fields[x][y].state = Hidden;
+				fields[x][y].initialState = Bomb;
+
+				numberOfEmptyFields--;
 
 				initAdjacents(x, y);
 			}
@@ -123,8 +152,8 @@ void initAdjacents(int x, int y)
 	{
 		for (int j = yUp; j <= yDown; j++)
 		{
-			fields[i + j * fieldsX].bombNumber++;
-			fields[i + j * fieldsX].initialState = Number;
+			fields[i][j].bombNumber++;
+			fields[i][j].initialState = Number;
 		}
 	}
 }
@@ -133,10 +162,10 @@ void initFieldOffSet(SDL_Renderer *renderer, SDL_Texture *image, int x, int y)
 {
 	SDL_Rect destinationRect;
 
-	destinationRect.x = x*fieldsX;
-	destinationRect.y = y*fieldsX;
-	destinationRect.w = fieldsX;
-	destinationRect.h = fieldsX;
+	destinationRect.x = x*fieldWidth;
+	destinationRect.y = y*fieldWidth;
+	destinationRect.w = fieldWidth;
+	destinationRect.h = fieldWidth;
 
 	SDL_RenderCopy(renderer, image, NULL, &destinationRect);
 }
@@ -149,7 +178,7 @@ void displayFields(SDL_Renderer *renderer)
 	{
 		for (int j = 0; j < fieldsY; j++)
 		{
-			Field field = fields[i + j * fieldsY];
+			Field field = fields[i][j];
 
 			SDL_Texture *image = getImageFromField(renderer, field);
 			
@@ -193,10 +222,10 @@ int solveEvent(SDL_Event event, SDL_Renderer *renderer, int running)
 		{
 			SDL_MouseButtonEvent pressedButton = event.button;
 
-			int x = pressedButton.x / fieldsX;
-			int y = pressedButton.y / fieldsY;
+			int x = pressedButton.x / fieldWidth;
+			int y = pressedButton.y / fieldWidth;
 
-			if (fields[x + y * fieldsX].state != Hidden && fields[x + y * fieldsX].state != Flag)
+			if (fields[x][y].state != Hidden && fields[x][y].state != Flag)
 			{
 				return 1;
 
@@ -205,7 +234,7 @@ int solveEvent(SDL_Event event, SDL_Renderer *renderer, int running)
 
 			if (pressedButton.button == SDL_BUTTON_LEFT)
 			{
-				if (fields[x + y * fieldsX].hasBomb == true)
+				if (fields[x][y].hasBomb == true)
 				{
 					gameLost(renderer);
 
@@ -219,7 +248,7 @@ int solveEvent(SDL_Event event, SDL_Renderer *renderer, int running)
 				}
 				else
 				{
-					fields[x + y * fieldsX].state = fields[x + y * fieldsX].initialState;
+					checkAdjacents(x, y, 0, renderer);
 				
 					displayFields(renderer);
 
@@ -230,13 +259,13 @@ int solveEvent(SDL_Event event, SDL_Renderer *renderer, int running)
 			}
 			else
 			{
-				if (fields[x + y * fieldsX].state == Flag)
+				if (fields[x][y].state == Flag)
 				{
-					fields[x + y * fieldsX].state = Hidden;
+					fields[x][y].state = Hidden;
 				}
 				else 
 				{
-					fields[x + y * fieldsX].state = Flag;
+					fields[x][y].state = Flag;
 				}
 
 				displayFields(renderer);
@@ -251,6 +280,93 @@ int solveEvent(SDL_Event event, SDL_Renderer *renderer, int running)
 	return 1;
 }
 
+void checkAdjacents(int x, int y, int count, SDL_Renderer *renderer)
+{
+	if (fields[x][y].state == fields[x][y].initialState)
+	{
+		return;
+	}
+
+	fields[x][y].state = fields[x][y].initialState;
+
+	if (fields[x][y].state != Bomb)
+	{
+		fieldsRevealed++;
+	}
+
+	if (fieldsRevealed == numberOfEmptyFields)
+	{
+		gameLost(renderer);
+
+		MessageBox(NULL, "You have won", NULL, NULL);
+
+		initGame(renderer);
+
+		return;
+	}
+
+	if (fields[x][y].state != Empty)
+	{
+		return;
+	}
+
+	// left-up corner
+
+	if (x - 1 > 0 && y - 1 > 0)
+	{
+		checkAdjacents(x - 1, y - 1, count + 1, renderer);
+	}
+
+	// up corner
+
+	if (x - 1 > 0)
+	{
+		checkAdjacents(x - 1, y, count + 1, renderer);
+	}
+
+	// right-up corner
+
+	if (x - 1 > 0 && y + 1 < fieldsY)
+	{
+		checkAdjacents(x - 1, y + 1, count + 1, renderer);
+	}
+
+	// right
+
+	if (y + 1 < fieldsY)
+	{
+		checkAdjacents(x, y + 1, count + 1, renderer);
+	}
+
+	// right-down corner
+
+	if (x + 1 < fieldsX && y + 1 < fieldsY)
+	{
+		checkAdjacents(x + 1, y + 1, count + 1, renderer);
+	}
+
+	// down
+
+	if (x + 1 < fieldsX)
+	{
+		checkAdjacents(x + 1, y, count + 1, renderer);
+	}
+
+	// down-left
+
+	if (x + 1 < fieldsX && y - 1 > 0)
+	{
+		checkAdjacents(x + 1, y - 1, count + 1, renderer);
+	}
+
+	// left
+
+	if (y - 1 > 0)
+	{
+		checkAdjacents(x, y - 1, count + 1, renderer);
+	}
+}
+
 void gameLost(SDL_Renderer *renderer)
 {
 	SDL_RenderClear(renderer);
@@ -259,7 +375,7 @@ void gameLost(SDL_Renderer *renderer)
 	{
 		for (int j = 0; j < fieldsY; j++)
 		{
-			Field field = fields[i + j * fieldsY];
+			Field field = fields[i][j];
 
 			if (field.hasBomb == true)
 			{
@@ -268,10 +384,14 @@ void gameLost(SDL_Renderer *renderer)
 			else if (field.initialState == Empty)
 			{
 				field.state = Empty;
+
+				fieldsRevealed--;
 			}
 			else
 			{
 				field.state = field.initialState;
+
+				fieldsRevealed--;
 			}
 
 			SDL_Texture *image = getImageFromField(renderer, field);
